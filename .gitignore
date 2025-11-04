@@ -1,0 +1,77 @@
+# Environment Variables (contains real API keys)
+.env
+
+# Python Virtual Environment
+venv/
+env/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Generated RAG Systems and Results (large directories)
+results/
+!results/.gitkeep
+
+# Data Directory (generated LLM responses and logs)
+data/
+!data/.gitkeep
+
+# Cache and Temp Directories
+cache/
+!cache/.gitkeep
+temp/
+!temp/.gitkeep
+
+# Query Files (keep only example files)
+queries/*
+!queries/.gitkeep
+!queries/DYRK1B_queries_*.json
+!queries/gene_reg_evolution_queries_*.json
+
+# Testing and Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type Checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Distribution / Packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Documentation builds
+docs/_build/
