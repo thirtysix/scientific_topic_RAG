@@ -145,14 +145,14 @@ Ensure the JSON is valid and well-formatted."""
         
         return prompt
     
-    def query_llm(self, prompt: str) -> str:
-        """Send query to LLM API and get response"""
-        
+    def query_llm(self, prompt: str, max_retries: int = 3) -> str:
+        """Send query to LLM API and get response, with retry logic"""
+
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.config.api_key}"
         }
-        
+
         payload = {
             "model": self.config.model_name,
             "messages": [
@@ -164,29 +164,38 @@ Ensure the JSON is valid and well-formatted."""
             "max_tokens": self.config.max_tokens,
             "temperature": self.config.temperature
         }
-        
-        try:
-            logger.info(f"Querying {self.config.api_provider} API...")
-            response = requests.post(
-                self.base_url, 
-                headers=headers, 
-                json=payload, 
-                timeout=self.config.timeout
-            )
-            response.raise_for_status()
-            
-            response_data = response.json()
-            llm_response = response_data["choices"][0]["message"]["content"].strip()
-            
-            logger.info("LLM query completed successfully")
-            return llm_response
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {e}")
-            raise Exception(f"API request failed: {e}")
-        except KeyError as e:
-            logger.error(f"Unexpected API response format: {e}")
-            raise Exception(f"Unexpected API response format: {e}")
+
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                logger.info(f"Querying {self.config.api_provider} API (attempt {attempt}/{max_retries})...")
+                response = requests.post(
+                    self.base_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.config.timeout
+                )
+                response.raise_for_status()
+
+                response_data = response.json()
+                llm_response = response_data["choices"][0]["message"]["content"].strip()
+
+                logger.info("LLM query completed successfully")
+                return llm_response
+
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                logger.warning(f"API request failed (attempt {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    delay = 2 ** attempt
+                    logger.info(f"Retrying in {delay} seconds...")
+                    import time
+                    time.sleep(delay)
+            except KeyError as e:
+                logger.error(f"Unexpected API response format: {e}")
+                raise Exception(f"Unexpected API response format: {e}")
+
+        raise Exception(f"API request failed after {max_retries} attempts: {last_error}")
     
     def parse_llm_response(self, response: str) -> Dict[str, Any]:
         """Parse and validate the LLM response"""
@@ -284,7 +293,7 @@ Ensure the JSON is valid and well-formatted."""
                 'exclude_terms': exclude_terms,
                 'custom_instructions': custom_instructions,
                 'generation_timestamp': timestamp,
-                'config': self.config.__dict__
+                'config': {k: v for k, v in self.config.__dict__.items() if k != 'api_key'}
             },
             raw_response=raw_response,
             timestamp=timestamp

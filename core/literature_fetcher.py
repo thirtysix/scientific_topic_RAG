@@ -77,10 +77,15 @@ class LiteratureFetcher:
         queries = []
         search_config = query_config.search_config.get('search_config', {})
 
+        # Helper: split a term list into batches of batch_size
+        def _batch_terms(terms, batch_size=15):
+            return [terms[i:i + batch_size] for i in range(0, len(terms), batch_size)]
+
         # Core concept queries - these define the main topic
         core_terms = search_config.get('core_terms', [])
         if core_terms:
-            core_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in core_terms[:10]]) + ')'
+            # Core terms are usually few (<15), so one query suffices
+            core_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in core_terms]) + ')'
             queries.append({
                 'query': core_query,
                 'type': 'core_concepts',
@@ -88,48 +93,47 @@ class LiteratureFetcher:
             })
 
             # Build a focused core query for combining with other categories
-            # Use the most important core terms (first 3-5) for focused searches
             focused_core = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in core_terms[:3]]) + ')'
         else:
             focused_core = None
 
-        # Entity-based queries - entities are usually specific to the topic, so can stand alone
+        # Entity-based queries - batch ALL entity terms (not just first 10)
         entity_terms = search_config.get('entity_terms', [])
         if entity_terms:
-            entity_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in entity_terms[:10]]) + ')'
-            queries.append({
-                'query': entity_query,
-                'type': 'entities',
-                'description': 'Key entities and components'
-            })
+            for batch_num, batch in enumerate(_batch_terms(entity_terms, 15), 1):
+                entity_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in batch]) + ')'
+                queries.append({
+                    'query': entity_query,
+                    'type': 'entities',
+                    'description': f'Key entities and components (batch {batch_num})'
+                })
 
-        # Method-based queries - MUST be combined with core topic to avoid generic results
+        # Method-based queries - batch ALL method terms, combined with core topic
         method_terms = search_config.get('method_terms', [])
         if method_terms and focused_core:
-            method_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in method_terms[:10]]) + ')'
-            # Combine with core topic to keep it focused
-            combined_method_query = f'{focused_core} AND {method_query}'
-            queries.append({
-                'query': combined_method_query,
-                'type': 'methods',
-                'description': 'Methods and techniques for topic'
-            })
+            for batch_num, batch in enumerate(_batch_terms(method_terms, 15), 1):
+                method_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in batch]) + ')'
+                combined_method_query = f'{focused_core} AND {method_query}'
+                queries.append({
+                    'query': combined_method_query,
+                    'type': 'methods',
+                    'description': f'Methods and techniques for topic (batch {batch_num})'
+                })
 
-        # Context-based queries - also combine with core for focus
+        # Context-based queries - batch ALL context terms, combined with core
         context_terms = search_config.get('context_terms', [])
         if context_terms and focused_core:
-            context_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in context_terms[:10]]) + ')'
-            # Combine with core topic for relevance
-            combined_context_query = f'{focused_core} AND {context_query}'
-            queries.append({
-                'query': combined_context_query,
-                'type': 'context',
-                'description': 'Application contexts for topic'
-            })
+            for batch_num, batch in enumerate(_batch_terms(context_terms, 15), 1):
+                context_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in batch]) + ')'
+                combined_context_query = f'{focused_core} AND {context_query}'
+                queries.append({
+                    'query': combined_context_query,
+                    'type': 'context',
+                    'description': f'Application contexts for topic (batch {batch_num})'
+                })
 
-        # Combined broad query - mix of core and entity terms (not methods to avoid dilution)
-        # This provides a broad but still topic-focused search
-        combined_terms = (core_terms[:5] + entity_terms[:10])[:15]
+        # Combined broad query - use more terms for broader coverage
+        combined_terms = (core_terms[:5] + entity_terms[:20])[:25]
         if combined_terms:
             broad_query = '(' + ' OR '.join([f'"{term}"[Title/Abstract]' for term in combined_terms]) + ')'
             queries.append({
@@ -161,7 +165,7 @@ class LiteratureFetcher:
         if self.config.date_range_years:
             current_year = time.gmtime().tm_year
             start_year = current_year - self.config.date_range_years
-            date_filter = f' AND "{start_year}"[Date - Publication] : "3000"[Date - Publication]'
+            date_filter = f' AND "{start_year}"[Date - Publication] : "{current_year}"[Date - Publication]'
             for query_dict in queries:
                 query_dict['query'] += date_filter
         
