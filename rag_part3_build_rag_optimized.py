@@ -1034,11 +1034,19 @@ def create_rag_config(output_dir: Path, vector_db_path: str, literature_file: Pa
             "vector_db_type": VECTOR_DB_TYPE
         },
         "text_processing": {
-            "chunk_size": CHUNK_SIZE,
-            "chunk_overlap": CHUNK_OVERLAP,
+            "chunking_strategy": CHUNKING_STRATEGY,
+            "chunk_size": SMALL_CHUNKS_ONLY_SIZE if CHUNKING_STRATEGY == "small_chunks_only" else CHUNK_SIZE,
+            "chunk_overlap": SMALL_CHUNKS_ONLY_OVERLAP if CHUNKING_STRATEGY == "small_chunks_only" else CHUNK_OVERLAP,
             "max_chunk_length": MAX_CHUNK_LENGTH,
+            "min_chunk_size": 20,
             "chunking_method": "sentence-aware",
-            "text_cleaning": "normalize_whitespace"
+            "sentence_tokenizer": "nltk_punkt",
+            "text_cleaning": "normalize_whitespace",
+            "include_title_in_chunks": INCLUDE_TITLE_IN_CHUNKS,
+            "hybrid_small_chunk_size": SMALL_CHUNK_SIZE if CHUNKING_STRATEGY == "hybrid" else None,
+            "hybrid_small_chunk_overlap": SMALL_CHUNK_OVERLAP if CHUNKING_STRATEGY == "hybrid" else None,
+            "hybrid_medium_chunk_size": MEDIUM_CHUNK_SIZE if CHUNKING_STRATEGY == "hybrid" else None,
+            "hybrid_medium_chunk_overlap": MEDIUM_CHUNK_OVERLAP if CHUNKING_STRATEGY == "hybrid" else None,
         },
         "embeddings": {
             "model_configured": EMBEDDING_MODEL,
